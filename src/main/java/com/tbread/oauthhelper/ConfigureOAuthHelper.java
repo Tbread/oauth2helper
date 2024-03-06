@@ -24,6 +24,8 @@ public class ConfigureOAuthHelper {
                 environment.getProperty("oauth2.helper.response-type.naver", "code"),
                 environment.getProperty("oauth2.helper.response-type.kakao", "code"),
                 environment.getProperty("oauth2.helper.grant-type.naver", "authorization_code"),
-                environment.getProperty("oauth2.helper.grant-type.kakao", "authorization_code"));
+                environment.getProperty("oauth2.helper.grant-type.kakao", "authorization_code"),
+                environment.getProperty("oauth2.helper.scope.naver", "email profile"),
+                environment.getProperty("oauth2.helper.scope.kakao", "email profile"));
     }
 }

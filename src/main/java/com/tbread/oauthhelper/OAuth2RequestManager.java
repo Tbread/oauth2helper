@@ -20,6 +20,8 @@ public class OAuth2RequestManager {
     private final String kakaoKey;
     private final String kakaoResponseType;
     private final String kakaoGrantType;
+    private final String naverScope;
+    private final String kakaoScope;
 
     public OAuth2RequestManager(String naverCallbackUrl,
                                 String naverKey,
@@ -29,7 +31,9 @@ public class OAuth2RequestManager {
                                 String naverResponseType,
                                 String kakaoResponseType,
                                 String naverGrantType,
-                                String kakaoGrantType) {
+                                String kakaoGrantType,
+                                String naverScope,
+                                String kakaoScope) {
         this.naverCallbackUrl = naverCallbackUrl;
         this.kakaoCallbackUrl = kakaoCallbackUrl;
         this.naverKey = naverKey;
@@ -39,6 +43,8 @@ public class OAuth2RequestManager {
         this.kakaoResponseType = kakaoResponseType;
         this.naverGrantType = naverGrantType;
         this.kakaoGrantType = kakaoGrantType;
+        this.naverScope = naverScope;
+        this.kakaoScope = kakaoScope;
     }
 
     public SocialUserAttributes socialLogin(SocialProvider provider, String code) {
@@ -109,12 +115,12 @@ public class OAuth2RequestManager {
 
 
     public String getKakaoLoginUrl() {
-        return "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=" + kakaoKey
-                + "&scope=account_email&redirect_uri=" + kakaoCallbackUrl;
+        return "https://kauth.kakao.com/oauth/authorize?&client_id=" + kakaoKey
+                + "&redirect_uri=" + kakaoCallbackUrl + "&scope=" + kakaoScope + "&response_type=" + kakaoResponseType;
     }
 
     public String getNaverLoginUrl() {
         return "https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=" + naverKey
-                + "&redirect_uri=" + naverCallbackUrl;
+                + "&redirect_uri=" + naverCallbackUrl + "&scope=" + naverScope + "&response_type=" + naverResponseType;
     }
 }
