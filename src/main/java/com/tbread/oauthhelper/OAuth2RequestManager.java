@@ -1,50 +1,48 @@
 package com.tbread.oauthhelper;
 
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.env.Environment;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 public class OAuth2RequestManager {
 
-    private final String naverCallbackUrl;
-    private final String naverKey;
-    private final String naverSecretKey;
-    private final String naverResponseType;
-    private final String naverGrantType;
-    private final String kakaoCallbackUrl;
-    private final String kakaoKey;
-    private final String kakaoResponseType;
-    private final String kakaoGrantType;
-    private final String naverScope;
-    private final String kakaoScope;
+    private String naverCallbackUrl;
+    private String naverKey;
+    private String naverSecretKey;
+    private String naverResponseType;
+    private String naverGrantType;
+    private String kakaoCallbackUrl;
+    private String kakaoKey;
+    private String kakaoResponseType;
+    private String kakaoGrantType;
+    private String naverScope;
+    private String kakaoScope;
+    private final Environment environment;
 
-    public OAuth2RequestManager(String naverCallbackUrl,
-                                String naverKey,
-                                String naverSecretKey,
-                                String kakaoCallbackUrl,
-                                String kakaoKey,
-                                String naverResponseType,
-                                String kakaoResponseType,
-                                String naverGrantType,
-                                String kakaoGrantType,
-                                String naverScope,
-                                String kakaoScope) {
-        this.naverCallbackUrl = naverCallbackUrl;
-        this.kakaoCallbackUrl = kakaoCallbackUrl;
-        this.naverKey = naverKey;
-        this.kakaoKey = kakaoKey;
-        this.naverSecretKey = naverSecretKey;
-        this.naverResponseType = naverCallbackUrl;
-        this.kakaoResponseType = kakaoResponseType;
-        this.naverGrantType = naverGrantType;
-        this.kakaoGrantType = kakaoGrantType;
-        this.naverScope = naverScope;
-        this.kakaoScope = kakaoScope;
+    public OAuth2RequestManager(Environment environment) {
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    void init() {
+        this.naverCallbackUrl = environment.getProperty("oauth2.helper.callback.naver");
+        this.naverKey = environment.getProperty("oauth2.helper.key.naver");
+        this.naverSecretKey = environment.getProperty("oauth2.helper.secret.naver");
+        this.kakaoCallbackUrl = environment.getProperty("oauth2.helper.callback.kakao");
+        this.kakaoKey = environment.getProperty("oauth2.helper.key.kakao");
+        this.naverResponseType = environment.getProperty("oauth2.helper.response-type.naver", "code");
+        this.kakaoResponseType = environment.getProperty("oauth2.helper.response-type.kakao", "code");
+        this.naverGrantType = environment.getProperty("oauth2.helper.grant-type.naver", "authorization_code");
+        this.kakaoGrantType = environment.getProperty("oauth2.helper.grant-type.kakao", "authorization_code");
+        this.naverScope = environment.getProperty("oauth2.helper.scope.naver", "email profile");
+        this.kakaoScope = environment.getProperty("oauth2.helper.scope.kakao", "email profile");
     }
 
     public SocialUserAttributes socialLogin(SocialProvider provider, String code) {
@@ -77,16 +75,18 @@ public class OAuth2RequestManager {
     }
 
     private String getKakaoAccessToken(String code) {
-        RestTemplate rt = new RestTemplate();
-        JSONObject body = new JSONObject();
-        body.put("grant_type", "authorization_code");
-        body.put("client_id", kakaoKey);
-        body.put("redirect_uri", kakaoCallbackUrl);
-        body.put("code", code);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<String> request = new HttpEntity<>(body.toString(), headers);
-        ResponseEntity<String> response = rt.postForEntity("https://kauth.kakao.com/oauth/token", request, String.class);
+        headers.add("Accept","application/json");
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("grant_type", "authorization_code");
+        params.add("client_id", kakaoKey);
+        params.add("redirect_uri", kakaoCallbackUrl);
+        params.add("code", code);
+        RestTemplate rt = new RestTemplate();
+        HttpEntity<MultiValueMap<String, String>> request =
+                new HttpEntity<>(params, headers);
+        ResponseEntity<String> response = rt.exchange("https://kauth.kakao.com/oauth/token", HttpMethod.POST,request, String.class);
         JSONObject resJson = new JSONObject(response.getBody());
         if (!resJson.has("access_token")) {
             throw new RuntimeException("Access Token 발급에 실패했습니다.");
@@ -97,7 +97,7 @@ public class OAuth2RequestManager {
     private JSONObject getNaverUserInfoByAccessToken(String token) {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        headers.add("Authorization","Bearer "+token);
         HttpEntity<String> request = new HttpEntity<>(headers);
         ResponseEntity<String> response = rt.getForEntity("https://openapi.naver.com/v1/nid/me", String.class, request);
         return new JSONObject(response.getBody());
@@ -106,10 +106,11 @@ public class OAuth2RequestManager {
     private JSONObject getKakaoUserInfoByAccessToken(String token) {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.setBearerAuth(token);
-        HttpEntity<String> request = new HttpEntity<>(headers);
-        ResponseEntity<String> response = rt.getForEntity("https://kapi.kakao.com/v2/user/me", String.class, request);
+        headers.add("Content-Type","application/x-www-form-urlencoded");
+        headers.add("Authorization","Bearer "+token);
+        headers.add("Accept","application/json");
+        HttpEntity<MultiValueMap<String,String>> request = new HttpEntity<>(headers);
+        ResponseEntity<String> response = rt.exchange("https://kapi.kakao.com/v2/user/me", HttpMethod.POST,request,String.class);
         return new JSONObject(response.getBody());
     }
 
